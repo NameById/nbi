@@ -1,6 +1,6 @@
 [package]
 name = "nbi"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "TUI for checking package name availability across npm, crates.io, PyPI, .dev domains and registering via GitHub"
 license = "MIT"
