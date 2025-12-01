@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nbi - Package Name Checker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const REGISTRIES = [
+      { key: 'npm', label: 'npm', desc: 'npmjs.com' },
+      { key: 'crates', label: 'crates.io', desc: 'crates.io' },
+      { key: 'pypi', label: 'PyPI', desc: 'pypi.org' },
+      { key: 'brew', label: 'Homebrew', desc: 'brew.sh' },
+      { key: 'flatpak', label: 'Flatpak', desc: 'flathub.org' },
+      { key: 'debian', label: 'Debian', desc: 'debian.org' },
+      { key: 'dev_domain', label: '.dev Domain', desc: 'DNS lookup' },
+    ];
+
+    const DEFAULT_TLDS = ['com', 'net', 'org', 'io', 'dev', 'app', 'co', 'ai', 'wiki', 'xyz', 'me', 'tv', 'gg'];
+
+    function App() {
+      const [tab, setTab] = useState('packages');
+      const [name, setName] = useState('');
+      const [results, setResults] = useState([]);
+      const [domainResults, setDomainResults] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [settings, setSettings] = useState({
+        npm: true, crates: true, pypi: true, brew: true,
+        flatpak: true, debian: true, dev_domain: true
+      });
+      const [selectedTlds, setSelectedTlds] = useState(DEFAULT_TLDS);
+      const [customTld, setCustomTld] = useState('');
+      const [customDomains, setCustomDomains] = useState([]);
+
+      const checkPackages = async () => {
+        if (!name.trim()) return;
+        setLoading(true);
+        setResults([]);
+        try {
+          const res = await fetch('/api/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name.trim(), registries: settings })
+          });
+          const data = await res.json();
+          setResults(data.results || []);
+        } catch (e) {
+          console.error(e);
+        }
+        setLoading(false);
+      };
+
+      const checkDomains = async () => {
+        const input = name.trim();
+        if (!input) return;
+        setLoading(true);
+        setDomainResults([]);
+        
+        try {
+          // Check if input contains a dot (full domain like banana.wiki)
+          if (input.includes('.')) {
+            // Single full domain check
+            const res = await fetch('/api/domain/full', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ domains: [input, ...customDomains] })
+            });
+            const data = await res.json();
+            setDomainResults(data.results || []);
+          } else {
+            // Name + TLDs check
+            const allTlds = [...selectedTlds, ...customDomains.map(d => d.split('.').pop())].filter(Boolean);
+            const res = await fetch('/api/domain', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: input, tlds: [...new Set(allTlds)] })
+            });
+            const data = await res.json();
+            setDomainResults(data.results || []);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        setLoading(false);
+      };
+
+      const addCustomDomain = () => {
+        const tld = customTld.trim().replace(/^\./, '');
+        if (tld && !selectedTlds.includes(tld) && !customDomains.includes(tld)) {
+          setCustomDomains(prev => [...prev, tld]);
+          setCustomTld('');
+        }
+      };
+
+      const removeCustomDomain = (tld) => {
+        setCustomDomains(prev => prev.filter(t => t !== tld));
+      };
+
+      const handleSearch = () => {
+        if (tab === 'packages') checkPackages();
+        else checkDomains();
+      };
+
+      const toggleRegistry = (key) => {
+        setSettings(prev => ({ ...prev, [key]: !prev[key] }));
+      };
+
+      const toggleTld = (tld) => {
+        setSelectedTlds(prev => 
+          prev.includes(tld) ? prev.filter(t => t !== tld) : [...prev, tld]
+        );
+      };
+
+      const getStatusIcon = (available) => {
+        if (available === true) return <span className="text-green-500">✓</span>;
+        if (available === false) return <span className="text-red-500">✗</span>;
+        return <span className="text-yellow-500">?</span>;
+      };
+
+      return (
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <h1 className="text-4xl font-bold text-center mb-2 text-cyan-400">nbi</h1>
+          <p className="text-center text-gray-400 mb-8">Package Name Availability Checker</p>
+
+          {/* Tabs */}
+          <div className="flex justify-center gap-4 mb-6">
+            <button
+              onClick={() => setTab('packages')}
+              className={`px-6 py-2 rounded-lg font-medium transition ${
+                tab === 'packages' 
+                  ? 'bg-cyan-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Packages
+            </button>
+            <button
+              onClick={() => setTab('domains')}
+              className={`px-6 py-2 rounded-lg font-medium transition ${
+                tab === 'domains' 
+                  ? 'bg-cyan-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Domains
+            </button>
+            <button
+              onClick={() => setTab('settings')}
+              className={`px-6 py-2 rounded-lg font-medium transition ${
+                tab === 'settings' 
+                  ? 'bg-cyan-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+            >
+              Settings
+            </button>
+          </div>
+
+          {/* Search Input */}
+          {tab !== 'settings' && (
+            <div className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder={tab === 'packages' ? 'Enter package name...' : 'Enter domain name...'}
+                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-cyan-500"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={loading || !name.trim()}
+                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-600 rounded-lg font-medium transition"
+              >
+                {loading ? <span className="spinner"></span> : 'Search'}
+              </button>
+            </div>
+          )}
+
+          {/* Packages Tab */}
+          {tab === 'packages' && (
+            <div className="bg-gray-800 rounded-lg p-4">
+              <h2 className="text-lg font-semibold mb-4 text-gray-300">Results</h2>
+              {results.length === 0 && !loading && (
+                <p className="text-gray-500">Enter a package name to check availability</p>
+              )}
+              {loading && <p className="text-gray-400">Checking...</p>}
+              <div className="space-y-2">
+                {results.map((r, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 bg-gray-700 rounded">
+                    <span className="text-xl">{getStatusIcon(r.available)}</span>
+                    <span className="font-medium w-32">{r.registry}</span>
+                    <span className={r.available ? 'text-green-400' : r.available === false ? 'text-red-400' : 'text-yellow-400'}>
+                      {r.available === true ? 'Available' : r.available === false ? 'Taken' : 'Unknown'}
+                    </span>
+                    {r.error && <span className="text-red-400 text-sm ml-auto">{r.error}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Domains Tab */}
+          {tab === 'domains' && (
+            <div>
+              {/* Hint */}
+              <div className="bg-gray-800 rounded-lg p-3 mb-4 text-sm text-gray-400">
+                <span className="text-cyan-400">Tip:</span> Enter just a name (e.g., <code className="bg-gray-700 px-1 rounded">banana</code>) to check multiple TLDs, 
+                or a full domain (e.g., <code className="bg-gray-700 px-1 rounded">banana.wiki</code>) for a specific check.
+              </div>
+
+              {/* TLD Selection */}
+              <div className="bg-gray-800 rounded-lg p-4 mb-4">
+                <h3 className="text-sm font-semibold mb-3 text-gray-400">Select TLDs</h3>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {DEFAULT_TLDS.map(tld => (
+                    <button
+                      key={tld}
+                      onClick={() => toggleTld(tld)}
+                      className={`px-3 py-1 rounded text-sm transition ${
+                        selectedTlds.includes(tld)
+                          ? 'bg-cyan-600 text-white'
+                          : 'bg-gray-700 text-gray-400'
+                      }`}
+                    >
+                      .{tld}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Custom TLDs */}
+                {customDomains.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {customDomains.map(tld => (
+                      <button
+                        key={tld}
+                        onClick={() => removeCustomDomain(tld)}
+                        className="px-3 py-1 rounded text-sm bg-purple-600 text-white hover:bg-purple-700 transition"
+                      >
+                        .{tld} ✕
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add Custom TLD */}
+                <div className="flex gap-2 mt-3">
+                  <input
+                    type="text"
+                    value={customTld}
+                    onChange={(e) => setCustomTld(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomDomain()}
+                    placeholder="Add custom TLD (e.g., wiki, gg, sh)"
+                    className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm focus:outline-none focus:border-cyan-500"
+                  />
+                  <button
+                    onClick={addCustomDomain}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm transition"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Domain Results */}
+              <div className="bg-gray-800 rounded-lg p-4">
+                <h2 className="text-lg font-semibold mb-4 text-gray-300">Domain Results</h2>
+                {domainResults.length === 0 && !loading && (
+                  <p className="text-gray-500">Enter a domain name to check availability</p>
+                )}
+                {loading && <p className="text-gray-400">Checking DNS...</p>}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {domainResults.map((r, i) => (
+                    <div key={i} className="flex items-center gap-2 p-3 bg-gray-700 rounded">
+                      <span className="text-lg">{getStatusIcon(r.available)}</span>
+                      <span className="font-mono text-sm">{r.domain}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {tab === 'settings' && (
+            <div className="bg-gray-800 rounded-lg p-4">
+              <h2 className="text-lg font-semibold mb-4 text-gray-300">Registry Settings</h2>
+              <p className="text-gray-500 text-sm mb-4">Toggle registries to include in package search</p>
+              <div className="space-y-2">
+                {REGISTRIES.map(reg => (
+                  <div 
+                    key={reg.key}
+                    onClick={() => toggleRegistry(reg.key)}
+                    className="flex items-center gap-3 p-3 bg-gray-700 rounded cursor-pointer hover:bg-gray-600 transition"
+                  >
+                    <span className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                      settings[reg.key] ? 'bg-cyan-600 border-cyan-600' : 'border-gray-500'
+                    }`}>
+                      {settings[reg.key] && <span className="text-white text-sm">✓</span>}
+                    </span>
+                    <span className="font-medium w-32">{reg.label}</span>
+                    <span className="text-gray-500 text-sm">{reg.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <footer className="text-center text-gray-600 mt-8 text-sm">
+            nbi - Package Name Availability Checker | <a href="https://github.com" className="text-cyan-600 hover:underline">GitHub</a>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

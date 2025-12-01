@@ -4,41 +4,37 @@ use trust_dns_resolver::TokioAsyncResolver;
 
 /// Check if a .dev domain is potentially available
 ///
-/// This uses DNS lookup to check if the domain has any records.
-/// Note: This is NOT a definitive availability check. A domain without
-/// DNS records could still be registered but not configured.
-/// For accurate results, you'd need a WHOIS API or registrar API.
-///
-/// Returns:
-/// - available = Some(true): No DNS records found (might be available)
-/// - available = Some(false): DNS records exist (definitely taken)
-/// - available = None: Check failed
+/// Uses DNS lookup to check if the domain has any A records
 pub async fn check(name: &str) -> AvailabilityResult {
-  let domain = format!("{}.dev", name);
+  check_tld(name, "dev").await
+}
 
-  let resolver = TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
+/// Check if a domain with specific TLD is available
+pub async fn check_tld(name: &str, tld: &str) -> AvailabilityResult {
+  let domain = format!("{}.{}", name, tld);
 
-  // Try to resolve A records
+  let resolver =
+    TokioAsyncResolver::tokio(ResolverConfig::google(), ResolverOpts::default());
+
   match resolver.lookup_ip(&domain).await {
-    Ok(_) => AvailabilityResult {
-      registry: RegistryType::DevDomain,
-      name: domain,
-      available: Some(false), // Domain has DNS records, likely taken
-      error: None,
-    },
+    Ok(response) => {
+      // If we get IP addresses, domain is taken (not available)
+      let has_records = response.iter().count() > 0;
+      AvailabilityResult {
+        registry: RegistryType::DevDomain,
+        name: domain,
+        available: Some(!has_records),
+        error: None,
+      }
+    }
     Err(e) => {
-      // Check if it's a "no records" error vs actual failure
-      let err_str = e.to_string();
-      let is_nxdomain = err_str.contains("no record")
-        || err_str.contains("NXDOMAIN")
-        || err_str.contains("NxDomain")
-        || err_str.contains("no connections");
-
-      if is_nxdomain {
+      // NXDOMAIN means the domain doesn't exist (available)
+      let error_str = e.to_string();
+      if error_str.contains("NXDOMAIN") || error_str.contains("no record") {
         AvailabilityResult {
           registry: RegistryType::DevDomain,
           name: domain,
-          available: Some(true), // No DNS records, might be available
+          available: Some(true),
           error: None,
         }
       } else {
@@ -46,7 +42,50 @@ pub async fn check(name: &str) -> AvailabilityResult {
           registry: RegistryType::DevDomain,
           name: domain,
           available: None,
-          error: Some(err_str),
+          error: Some(error_str),
+        }
+      }
+    }
+  }
+}
+
+/// Check multiple TLDs at once
+pub async fn check_multiple_tlds(name: &str, tlds: &[&str]) -> Vec<AvailabilityResult> {
+  let futures: Vec<_> = tlds.iter().map(|tld| check_tld(name, tld)).collect();
+  futures::future::join_all(futures).await
+}
+
+/// Check a full domain (e.g., "banana.wiki")
+pub async fn check_full_domain(domain: &str) -> AvailabilityResult {
+  let resolver =
+    TokioAsyncResolver::tokio(ResolverConfig::google(), ResolverOpts::default());
+
+  match resolver.lookup_ip(domain).await {
+    Ok(response) => {
+      // If we get IP addresses, domain is taken (not available)
+      let has_records = response.iter().count() > 0;
+      AvailabilityResult {
+        registry: RegistryType::DevDomain,
+        name: domain.to_string(),
+        available: Some(!has_records),
+        error: None,
+      }
+    }
+    Err(e) => {
+      let error_str = e.to_string();
+      if error_str.contains("NXDOMAIN") || error_str.contains("no record") {
+        AvailabilityResult {
+          registry: RegistryType::DevDomain,
+          name: domain.to_string(),
+          available: Some(true),
+          error: None,
+        }
+      } else {
+        AvailabilityResult {
+          registry: RegistryType::DevDomain,
+          name: domain.to_string(),
+          available: None,
+          error: Some(error_str),
         }
       }
     }
