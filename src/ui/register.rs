@@ -80,6 +80,9 @@ fn render_registry_list(frame: &mut Frame, app: &App, area: Rect) {
         RegistryType::Npm => "Reserve via GitHub",
         RegistryType::Crates => "Reserve via GitHub",
         RegistryType::PyPi => "Reserve via GitHub",
+        RegistryType::Brew => "Submit formula PR",
+        RegistryType::Flatpak => "Submit to Flathub",
+        RegistryType::Debian => "Submit package",
         RegistryType::DevDomain => "Check registrar",
       };
 

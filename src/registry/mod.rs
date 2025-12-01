@@ -1,5 +1,8 @@
+pub mod brew;
 pub mod crates;
+pub mod debian;
 pub mod domain;
+pub mod flatpak;
 pub mod github;
 pub mod npm;
 pub mod pypi;
@@ -20,6 +23,9 @@ pub enum RegistryType {
   Npm,
   Crates,
   PyPi,
+  Brew,
+  Flatpak,
+  Debian,
   DevDomain,
   GitHub,
 }
@@ -30,19 +36,38 @@ impl std::fmt::Display for RegistryType {
       RegistryType::Npm => write!(f, "npm"),
       RegistryType::Crates => write!(f, "crates.io"),
       RegistryType::PyPi => write!(f, "PyPI"),
+      RegistryType::Brew => write!(f, "Homebrew"),
+      RegistryType::Flatpak => write!(f, "Flatpak"),
+      RegistryType::Debian => write!(f, "Debian"),
       RegistryType::DevDomain => write!(f, ".dev"),
       RegistryType::GitHub => write!(f, "GitHub"),
     }
   }
 }
 
-/// Check availability across all registries
-pub async fn check_all(name: &str) -> Vec<AvailabilityResult> {
-  let (npm, crates, pypi, domain) = tokio::join!(
-    npm::check(name),
-    crates::check(name),
-    pypi::check(name),
-    domain::check(name),
+use crate::config::RegistrySettings;
+
+/// Check availability across enabled registries
+pub async fn check_all(name: &str, settings: &RegistrySettings) -> Vec<AvailabilityResult> {
+  let mut results = Vec::new();
+
+  let (npm_res, crates_res, pypi_res, brew_res, flatpak_res, debian_res, domain_res) = tokio::join!(
+    async { if settings.npm { Some(npm::check(name).await) } else { None } },
+    async { if settings.crates { Some(crates::check(name).await) } else { None } },
+    async { if settings.pypi { Some(pypi::check(name).await) } else { None } },
+    async { if settings.brew { Some(brew::check(name).await) } else { None } },
+    async { if settings.flatpak { Some(flatpak::check(name).await) } else { None } },
+    async { if settings.debian { Some(debian::check(name).await) } else { None } },
+    async { if settings.dev_domain { Some(domain::check(name).await) } else { None } },
   );
-  vec![npm, crates, pypi, domain]
+
+  if let Some(r) = npm_res { results.push(r); }
+  if let Some(r) = crates_res { results.push(r); }
+  if let Some(r) = pypi_res { results.push(r); }
+  if let Some(r) = brew_res { results.push(r); }
+  if let Some(r) = flatpak_res { results.push(r); }
+  if let Some(r) = debian_res { results.push(r); }
+  if let Some(r) = domain_res { results.push(r); }
+
+  results
 }

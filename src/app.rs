@@ -6,6 +6,7 @@ use crate::registry::AvailabilityResult;
 pub enum Screen {
   Search,
   Register,
+  Settings,
 }
 
 /// Application state
@@ -23,6 +24,9 @@ pub struct App {
   pub selected_registry: usize,
   pub register_status: Option<String>,
   pub is_registering: bool,
+
+  // Settings state
+  pub selected_setting: usize,
 
   // UI state
   pub show_help: bool,
@@ -52,9 +56,16 @@ impl App {
       register_status: None,
       is_registering: false,
 
+      selected_setting: 0,
+
       show_help: false,
       input_mode: InputMode::Editing,
     }
+  }
+
+  /// Save current config
+  pub fn save_config(&self) -> anyhow::Result<()> {
+    self.config.save()
   }
 
   /// Get available registries from search results
@@ -65,12 +76,34 @@ impl App {
       .collect()
   }
 
-  /// Toggle screen between Search and Register
+  /// Toggle screen between Search, Register, and Settings
   pub fn toggle_screen(&mut self) {
     self.screen = match self.screen {
       Screen::Search => Screen::Register,
-      Screen::Register => Screen::Search,
+      Screen::Register => Screen::Settings,
+      Screen::Settings => Screen::Search,
     };
+  }
+
+  /// Get number of registry settings
+  pub fn registry_count(&self) -> usize {
+    7 // npm, crates, pypi, brew, flatpak, debian, dev_domain
+  }
+
+  /// Toggle registry at current selection
+  pub fn toggle_selected_registry(&mut self) {
+    match self.selected_setting {
+      0 => self.config.registries.npm = !self.config.registries.npm,
+      1 => self.config.registries.crates = !self.config.registries.crates,
+      2 => self.config.registries.pypi = !self.config.registries.pypi,
+      3 => self.config.registries.brew = !self.config.registries.brew,
+      4 => self.config.registries.flatpak = !self.config.registries.flatpak,
+      5 => self.config.registries.debian = !self.config.registries.debian,
+      6 => self.config.registries.dev_domain = !self.config.registries.dev_domain,
+      _ => {}
+    }
+    // Auto-save config
+    let _ = self.save_config();
   }
 
   /// Move selection up in register screen

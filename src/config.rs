@@ -6,9 +6,36 @@ use std::path::PathBuf;
 
 const APP_NAME: &str = "nbi";
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistrySettings {
+  pub npm: bool,
+  pub crates: bool,
+  pub pypi: bool,
+  pub brew: bool,
+  pub flatpak: bool,
+  pub debian: bool,
+  pub dev_domain: bool,
+}
+
+impl Default for RegistrySettings {
+  fn default() -> Self {
+    Self {
+      npm: true,
+      crates: true,
+      pypi: true,
+      brew: true,
+      flatpak: true,
+      debian: true,
+      dev_domain: true,
+    }
+  }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
   pub github_token: Option<String>,
+  #[serde(default)]
+  pub registries: RegistrySettings,
 }
 
 impl Config {
@@ -32,7 +59,6 @@ impl Config {
   }
 
   /// Save config to file
-  #[allow(dead_code)]
   pub fn save(&self) -> Result<()> {
     let path =
       Self::config_path().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;

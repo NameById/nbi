@@ -96,6 +96,9 @@ async fn run_app(
           KeyCode::Char('2') if app_guard.input_mode != InputMode::Editing => {
             app_guard.screen = Screen::Register;
           }
+          KeyCode::Char('3') if app_guard.input_mode != InputMode::Editing => {
+            app_guard.screen = Screen::Settings;
+          }
           _ => {
             // Screen-specific handling
             match app_guard.screen {
@@ -104,6 +107,9 @@ async fn run_app(
               }
               Screen::Register => {
                 handle_register_input(&mut app_guard, key.code).await;
+              }
+              Screen::Settings => {
+                handle_settings_input(&mut app_guard, key.code);
               }
             }
           }
@@ -138,12 +144,13 @@ async fn handle_search_input(app: &mut App, key: KeyCode, app_arc: Arc<Mutex<App
       KeyCode::Enter => {
         if !app.search_input.is_empty() {
           let name = app.search_input.clone();
+          let settings = app.config.registries.clone();
           app.is_searching = true;
 
           // Spawn search in background
           let app_clone = Arc::clone(&app_arc);
           tokio::spawn(async move {
-            let results = registry::check_all(&name).await;
+            let results = registry::check_all(&name, &settings).await;
             let mut app_guard = app_clone.lock().await;
             app_guard.search_results = results;
             app_guard.is_searching = false;
@@ -158,6 +165,25 @@ async fn handle_search_input(app: &mut App, key: KeyCode, app_arc: Arc<Mutex<App
       }
       _ => {}
     },
+  }
+}
+
+fn handle_settings_input(app: &mut App, key: KeyCode) {
+  match key {
+    KeyCode::Up => {
+      if app.selected_setting > 0 {
+        app.selected_setting -= 1;
+      }
+    }
+    KeyCode::Down => {
+      if app.selected_setting < app.registry_count() - 1 {
+        app.selected_setting += 1;
+      }
+    }
+    KeyCode::Enter | KeyCode::Char(' ') => {
+      app.toggle_selected_registry();
+    }
+    _ => {}
   }
 }
 
@@ -225,6 +251,19 @@ async fn handle_register_input(app: &mut App, key: KeyCode) {
               app.register_status =
                 Some("Error: Set GITHUB_TOKEN environment variable".to_string());
             }
+          }
+          RegistryType::Brew => {
+            app.register_status = Some(
+              "Homebrew: Create a formula and submit PR to homebrew-core".to_string(),
+            );
+          }
+          RegistryType::Flatpak => {
+            app.register_status =
+              Some("Flatpak: Submit your app to flathub.org/apps/submit".to_string());
+          }
+          RegistryType::Debian => {
+            app.register_status =
+              Some("Debian: Follow ITP process at wiki.debian.org/ITP".to_string());
           }
           RegistryType::DevDomain => {
             app.register_status = Some(

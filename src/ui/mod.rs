@@ -1,5 +1,6 @@
 pub mod register;
 pub mod search;
+pub mod settings;
 
 use crate::app::{App, InputMode, Screen};
 use ratatui::{
@@ -26,16 +27,18 @@ pub fn render(frame: &mut Frame, app: &App) {
   match app.screen {
     Screen::Search => search::render(frame, app, chunks[1]),
     Screen::Register => register::render(frame, app, chunks[1]),
+    Screen::Settings => settings::render(frame, app, chunks[1]),
   }
 
   render_status_bar(frame, app, chunks[2]);
 }
 
 fn render_tabs(frame: &mut Frame, app: &App, area: Rect) {
-  let titles = vec!["Search [1]", "Register [2]"];
+  let titles = vec!["Search [1]", "Register [2]", "Settings [3]"];
   let selected = match app.screen {
     Screen::Search => 0,
     Screen::Register => 1,
+    Screen::Settings => 2,
   };
 
   let tabs = Tabs::new(titles)
@@ -74,6 +77,7 @@ fn render_status_bar(frame: &mut Frame, app: &App, area: Rect) {
         (Screen::Search, InputMode::Normal) => "NORMAL | i,e to edit | Enter to focus",
         (Screen::Search, InputMode::Editing) => "EDITING | Esc to unfocus | Enter to search",
         (Screen::Register, _) => "↑/↓ select | Enter to register | ? help",
+        (Screen::Settings, _) => "↑/↓ select | Enter/Space toggle | ? help",
       };
       (mode_hint.to_string(), Style::default().fg(Color::DarkGray))
     }
