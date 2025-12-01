@@ -120,6 +120,11 @@ async fn run_app(
 }
 
 async fn handle_search_input(app: &mut App, key: KeyCode, app_arc: Arc<Mutex<App>>) {
+  // Disable input while searching
+  if app.is_searching {
+    return;
+  }
+
   match app.input_mode {
     InputMode::Normal => match key {
       KeyCode::Char('i') | KeyCode::Char('e') | KeyCode::Enter => {

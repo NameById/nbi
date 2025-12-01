@@ -21,22 +21,29 @@ pub fn render(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_search_input(frame: &mut Frame, app: &App, area: Rect) {
-  let (border_style, title) = match app.input_mode {
-    InputMode::Normal => (
+  let (border_style, title, text_style) = if app.is_searching {
+    (
       Style::default().fg(Color::DarkGray),
-      " Package Name (i/e to edit) ",
-    ),
-    InputMode::Editing => (
-      Style::default().fg(Color::Yellow),
-      " Package Name (Enter to search) ",
-    ),
+      " Searching... ",
+      Style::default().fg(Color::DarkGray),
+    )
+  } else {
+    match app.input_mode {
+      InputMode::Normal => (
+        Style::default().fg(Color::DarkGray),
+        " Package Name (i/e to edit) ",
+        Style::default(),
+      ),
+      InputMode::Editing => (
+        Style::default().fg(Color::Yellow),
+        " Package Name (Enter to search) ",
+        Style::default().fg(Color::Yellow),
+      ),
+    }
   };
 
   let input = Paragraph::new(app.search_input.as_str())
-    .style(match app.input_mode {
-      InputMode::Normal => Style::default(),
-      InputMode::Editing => Style::default().fg(Color::Yellow),
-    })
+    .style(text_style)
     .block(
       Block::default()
         .borders(Borders::ALL)
@@ -46,8 +53,8 @@ fn render_search_input(frame: &mut Frame, app: &App, area: Rect) {
 
   frame.render_widget(input, area);
 
-  // Show cursor when editing
-  if app.input_mode == InputMode::Editing {
+  // Show cursor when editing (but not when searching)
+  if app.input_mode == InputMode::Editing && !app.is_searching {
     frame.set_cursor_position((
       area.x + app.search_input.len() as u16 + 1,
       area.y + 1,

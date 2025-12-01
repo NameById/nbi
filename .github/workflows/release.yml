@@ -17,8 +17,8 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     outputs:
-      new_version: ${{ steps.bump.outputs.new_version }}
-      should_release: ${{ steps.bump.outputs.should_release }}
+      new_version: ${{ steps.release_flag.outputs.new_version }}
+      should_release: ${{ steps.release_flag.outputs.should_release }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +38,7 @@ jobs:
           LAST_MSG=$(git log -1 --pretty=%B)
           if [[ "$LAST_MSG" == *"[skip ci]"* ]] || [[ "$LAST_MSG" == *"chore: bump version"* ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
+            echo "should_release=false" >> $GITHUB_OUTPUT
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
@@ -59,6 +60,16 @@ jobs:
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "should_release=true" >> $GITHUB_OUTPUT
           echo "Bumped version: $CURRENT -> $NEW_VERSION"
+
+      - name: Set release flag
+        id: release_flag
+        run: |
+          if [[ "${{ steps.check.outputs.skip }}" == "true" ]]; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "new_version=${{ steps.bump.outputs.new_version }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Commit version bump
         if: steps.check.outputs.skip != 'true'
