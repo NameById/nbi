@@ -34,11 +34,12 @@ jobs:
       - name: Check if version bump needed
         id: check
         run: |
-          # Check if last commit was a version bump
+          # Check if last commit was a version bump or should be ignored
           LAST_MSG=$(git log -1 --pretty=%B)
-          if [[ "$LAST_MSG" == *"[skip ci]"* ]] || [[ "$LAST_MSG" == *"chore: bump version"* ]]; then
+          if [[ "$LAST_MSG" == *"[skip ci]"* ]] || [[ "$LAST_MSG" == *"chore: bump version"* ]] || [[ "$LAST_MSG" == *"ignore release"* ]]; then
             echo "skip=true" >> $GITHUB_OUTPUT
             echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Skipping release due to commit message"
           else
             echo "skip=false" >> $GITHUB_OUTPUT
           fi

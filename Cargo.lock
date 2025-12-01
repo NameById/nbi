@@ -1166,6 +1166,7 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "axum",
+ "base64",
  "clap",
  "crossterm 0.29.0",
  "directories",

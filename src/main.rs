@@ -355,22 +355,149 @@ async fn handle_register_input(app: &mut App, key: KeyCode) {
                 Some("Error: Set GITHUB_TOKEN environment variable".to_string());
             }
           }
-          RegistryType::Npm | RegistryType::Crates | RegistryType::PyPi => {
+          RegistryType::Npm => {
             if let Some(token) = token {
               app.is_registering = true;
               app.register_status = Some(format!(
-                "Creating GitHub repo to reserve '{}' for {}...",
-                name, reg_type
+                "Creating GitHub repo with package.json for '{}'...",
+                name
               ));
 
-              let description = format!("Reserved package name for {}", reg_type);
-
-              match registry::github::create_repo(&name, Some(&description), false, &token).await {
+              match registry::github::create_repo_with_manifest(
+                &name,
+                registry::github::ManifestType::Npm,
+                &token,
+              ).await {
                 Ok(repo) => {
                   app.register_status = Some(format!(
-                    "Success! Repo created: {} - Now publish to {} to claim the name",
-                    repo.html_url, reg_type
+                    "Success! {} - Run 'npm publish' to claim the name",
+                    repo.html_url
                   ));
+                }
+                Err(registry::github::GitHubError::RepoExists) => {
+                  // Try to add manifest to existing repo
+                  app.register_status = Some("Repo exists, checking for package.json...".to_string());
+                  let username = registry::github::get_username(&token).await.unwrap_or_default();
+                  match registry::github::add_manifest_if_missing(
+                    &username,
+                    &name,
+                    registry::github::ManifestType::Npm,
+                    &token,
+                  ).await {
+                    Ok(true) => {
+                      app.register_status = Some(format!(
+                        "Added package.json to existing repo. Run 'npm publish' to claim."
+                      ));
+                    }
+                    Ok(false) => {
+                      app.register_status = Some("package.json already exists in repo.".to_string());
+                    }
+                    Err(e) => {
+                      app.register_status = Some(format!("Error adding manifest: {}", e));
+                    }
+                  }
+                }
+                Err(e) => {
+                  app.register_status = Some(format!("Error: {}", e));
+                }
+              }
+              app.is_registering = false;
+            } else {
+              app.register_status =
+                Some("Error: Set GITHUB_TOKEN environment variable".to_string());
+            }
+          }
+          RegistryType::Crates => {
+            if let Some(token) = token {
+              app.is_registering = true;
+              app.register_status = Some(format!(
+                "Creating GitHub repo with Cargo.toml for '{}'...",
+                name
+              ));
+
+              match registry::github::create_repo_with_manifest(
+                &name,
+                registry::github::ManifestType::Crates,
+                &token,
+              ).await {
+                Ok(repo) => {
+                  app.register_status = Some(format!(
+                    "Success! {} - Run 'cargo publish' to claim the name",
+                    repo.html_url
+                  ));
+                }
+                Err(registry::github::GitHubError::RepoExists) => {
+                  app.register_status = Some("Repo exists, checking for Cargo.toml...".to_string());
+                  let username = registry::github::get_username(&token).await.unwrap_or_default();
+                  match registry::github::add_manifest_if_missing(
+                    &username,
+                    &name,
+                    registry::github::ManifestType::Crates,
+                    &token,
+                  ).await {
+                    Ok(true) => {
+                      app.register_status = Some(format!(
+                        "Added Cargo.toml to existing repo. Run 'cargo publish' to claim."
+                      ));
+                    }
+                    Ok(false) => {
+                      app.register_status = Some("Cargo.toml already exists in repo.".to_string());
+                    }
+                    Err(e) => {
+                      app.register_status = Some(format!("Error adding manifest: {}", e));
+                    }
+                  }
+                }
+                Err(e) => {
+                  app.register_status = Some(format!("Error: {}", e));
+                }
+              }
+              app.is_registering = false;
+            } else {
+              app.register_status =
+                Some("Error: Set GITHUB_TOKEN environment variable".to_string());
+            }
+          }
+          RegistryType::PyPi => {
+            if let Some(token) = token {
+              app.is_registering = true;
+              app.register_status = Some(format!(
+                "Creating GitHub repo with pyproject.toml for '{}'...",
+                name
+              ));
+
+              match registry::github::create_repo_with_manifest(
+                &name,
+                registry::github::ManifestType::PyPi,
+                &token,
+              ).await {
+                Ok(repo) => {
+                  app.register_status = Some(format!(
+                    "Success! {} - Run 'twine upload' to claim the name",
+                    repo.html_url
+                  ));
+                }
+                Err(registry::github::GitHubError::RepoExists) => {
+                  app.register_status = Some("Repo exists, checking for pyproject.toml...".to_string());
+                  let username = registry::github::get_username(&token).await.unwrap_or_default();
+                  match registry::github::add_manifest_if_missing(
+                    &username,
+                    &name,
+                    registry::github::ManifestType::PyPi,
+                    &token,
+                  ).await {
+                    Ok(true) => {
+                      app.register_status = Some(format!(
+                        "Added pyproject.toml to existing repo. Run 'twine upload' to claim."
+                      ));
+                    }
+                    Ok(false) => {
+                      app.register_status = Some("pyproject.toml already exists in repo.".to_string());
+                    }
+                    Err(e) => {
+                      app.register_status = Some(format!("Error adding manifest: {}", e));
+                    }
+                  }
                 }
                 Err(e) => {
                   app.register_status = Some(format!("Error: {}", e));
