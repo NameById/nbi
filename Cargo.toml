@@ -1,0 +1,32 @@
+[package]
+name = "nbi"
+version = "0.1.0"
+edition = "2021"
+description = "TUI for checking package name availability across npm, crates.io, PyPI, .dev domains and registering via GitHub"
+license = "MIT"
+
+[dependencies]
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json"] }
+
+# JSON
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Config
+directories = "5"
+toml = "0.8"
+
+# DNS lookup for domain check
+trust-dns-resolver = "0.23"
