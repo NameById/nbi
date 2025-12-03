@@ -33,7 +33,9 @@ impl Default for RegistrySettings {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-  pub github_token: Option<String>,
+  #[serde(skip)]
+  #[allow(dead_code)]
+  github_token: Option<String>,
   #[serde(default)]
   pub registries: RegistrySettings,
 }
@@ -72,17 +74,15 @@ impl Config {
     Ok(())
   }
 
-  /// Set GitHub token and save
+  /// GitHub token is no longer stored in config file for security
   #[allow(dead_code)]
-  pub fn set_github_token(&mut self, token: String) -> Result<()> {
-    self.github_token = Some(token);
-    self.save()
+  pub fn set_github_token(&mut self, _token: String) -> Result<()> {
+    // Deprecated: tokens should only be provided via environment variables
+    anyhow::bail!("GitHub tokens should only be set via GITHUB_TOKEN environment variable for security")
   }
 
-  /// Get GitHub token from config or environment
+  /// Get GitHub token from environment only (not stored in config)
   pub fn get_github_token(&self) -> Option<String> {
-    self.github_token
-      .clone()
-      .or_else(|| std::env::var("GITHUB_TOKEN").ok())
+    std::env::var("GITHUB_TOKEN").ok()
   }
 }

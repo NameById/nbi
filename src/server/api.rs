@@ -107,7 +107,13 @@ pub async fn check_full_domains(Json(req): Json<FullDomainRequest>) -> impl Into
 /// Get current config
 pub async fn get_config() -> impl IntoResponse {
   match Config::load() {
-    Ok(config) => (StatusCode::OK, Json(serde_json::to_value(config).unwrap())),
+    Ok(config) => match serde_json::to_value(config) {
+      Ok(value) => (StatusCode::OK, Json(value)),
+      Err(e) => (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(serde_json::json!({ "error": format!("Failed to serialize config: {}", e) })),
+      ),
+    },
     Err(e) => (
       StatusCode::INTERNAL_SERVER_ERROR,
       Json(serde_json::json!({ "error": e.to_string() })),
