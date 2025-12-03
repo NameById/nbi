@@ -35,6 +35,7 @@ fn render_registry_list(frame: &mut Frame, app: &App, area: Rect) {
     ("npm", app.config.registries.npm, "npmjs.com"),
     ("crates.io", app.config.registries.crates, "crates.io"),
     ("PyPI", app.config.registries.pypi, "pypi.org"),
+    ("GitHub", app.config.registries.github, "github.com/user"),
     ("Homebrew", app.config.registries.brew, "brew.sh"),
     ("Flatpak", app.config.registries.flatpak, "flathub.org"),
     ("Debian", app.config.registries.debian, "debian.org"),

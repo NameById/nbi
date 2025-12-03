@@ -42,6 +42,48 @@ pub enum GitHubError {
   NetworkError(#[from] reqwest::Error),
 }
 
+/// Check if a GitHub user or organization name is available
+///
+/// API: GET https://api.github.com/users/{username}
+/// - 404: User/org not found (available)
+/// - 200: User/org exists (not available)
+pub async fn check_name(name: &str) -> AvailabilityResult {
+  let url = format!("{}/users/{}", GITHUB_API_URL, name);
+
+  let client = reqwest::Client::new();
+  match client
+    .get(&url)
+    .header(header::USER_AGENT, "nbi/0.1.0")
+    .header(header::ACCEPT, "application/vnd.github+json")
+    .send()
+    .await
+  {
+    Ok(response) => {
+      let available = match response.status() {
+        StatusCode::NOT_FOUND => Some(true),
+        StatusCode::OK => Some(false),
+        _ => None,
+      };
+      AvailabilityResult {
+        registry: RegistryType::GitHub,
+        name: name.to_string(),
+        available,
+        error: if available.is_none() {
+          Some(format!("Unexpected status: {}", response.status()))
+        } else {
+          None
+        },
+      }
+    }
+    Err(e) => AvailabilityResult {
+      registry: RegistryType::GitHub,
+      name: name.to_string(),
+      available: None,
+      error: Some(e.to_string()),
+    },
+  }
+}
+
 /// Check if a GitHub repository name is available for the authenticated user
 ///
 /// API: GET https://api.github.com/repos/{owner}/{repo}

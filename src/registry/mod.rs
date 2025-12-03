@@ -51,7 +51,7 @@ use crate::config::RegistrySettings;
 pub async fn check_all(name: &str, settings: &RegistrySettings) -> Vec<AvailabilityResult> {
   let mut results = Vec::new();
 
-  let (npm_res, crates_res, pypi_res, brew_res, flatpak_res, debian_res, domain_res) = tokio::join!(
+  let (npm_res, crates_res, pypi_res, brew_res, flatpak_res, debian_res, domain_res, github_res) = tokio::join!(
     async { if settings.npm { Some(npm::check(name).await) } else { None } },
     async { if settings.crates { Some(crates::check(name).await) } else { None } },
     async { if settings.pypi { Some(pypi::check(name).await) } else { None } },
@@ -59,11 +59,13 @@ pub async fn check_all(name: &str, settings: &RegistrySettings) -> Vec<Availabil
     async { if settings.flatpak { Some(flatpak::check(name).await) } else { None } },
     async { if settings.debian { Some(debian::check(name).await) } else { None } },
     async { if settings.dev_domain { Some(domain::check(name).await) } else { None } },
+    async { if settings.github { Some(github::check_name(name).await) } else { None } },
   );
 
   if let Some(r) = npm_res { results.push(r); }
   if let Some(r) = crates_res { results.push(r); }
   if let Some(r) = pypi_res { results.push(r); }
+  if let Some(r) = github_res { results.push(r); }
   if let Some(r) = brew_res { results.push(r); }
   if let Some(r) = flatpak_res { results.push(r); }
   if let Some(r) = debian_res { results.push(r); }

@@ -8,13 +8,26 @@ const APP_NAME: &str = "nbi";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrySettings {
+  #[serde(default = "default_true")]
   pub npm: bool,
+  #[serde(default = "default_true")]
   pub crates: bool,
+  #[serde(default = "default_true")]
   pub pypi: bool,
+  #[serde(default = "default_true")]
   pub brew: bool,
+  #[serde(default = "default_true")]
   pub flatpak: bool,
+  #[serde(default = "default_true")]
   pub debian: bool,
+  #[serde(default = "default_true")]
   pub dev_domain: bool,
+  #[serde(default = "default_true")]
+  pub github: bool,
+}
+
+fn default_true() -> bool {
+  true
 }
 
 impl Default for RegistrySettings {
@@ -27,6 +40,7 @@ impl Default for RegistrySettings {
       flatpak: true,
       debian: true,
       dev_domain: true,
+      github: true,
     }
   }
 }

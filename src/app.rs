@@ -87,7 +87,7 @@ impl App {
 
   /// Get number of registry settings
   pub fn registry_count(&self) -> usize {
-    7 // npm, crates, pypi, brew, flatpak, debian, dev_domain
+    8 // npm, crates, pypi, github, brew, flatpak, debian, dev_domain
   }
 
   /// Toggle registry at current selection
@@ -96,10 +96,11 @@ impl App {
       0 => self.config.registries.npm = !self.config.registries.npm,
       1 => self.config.registries.crates = !self.config.registries.crates,
       2 => self.config.registries.pypi = !self.config.registries.pypi,
-      3 => self.config.registries.brew = !self.config.registries.brew,
-      4 => self.config.registries.flatpak = !self.config.registries.flatpak,
-      5 => self.config.registries.debian = !self.config.registries.debian,
-      6 => self.config.registries.dev_domain = !self.config.registries.dev_domain,
+      3 => self.config.registries.github = !self.config.registries.github,
+      4 => self.config.registries.brew = !self.config.registries.brew,
+      5 => self.config.registries.flatpak = !self.config.registries.flatpak,
+      6 => self.config.registries.debian = !self.config.registries.debian,
+      7 => self.config.registries.dev_domain = !self.config.registries.dev_domain,
       _ => {}
     }
     // Auto-save config
